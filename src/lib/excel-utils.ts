@@ -32,12 +32,36 @@ export interface ApontamentoRow {
 /** "8:30:00" or "08:30" -> 8.5 */
 export function timeToDecimal(v: unknown): number {
   if (v == null || v === "") return 0;
+
+  if (v instanceof Date) {
+    // O XLSX com cellDates: true converte durações em Date usando a data base 1899-12-30
+    const baseDate = new Date(Date.UTC(1899, 11, 30));
+    const diffMs = v.getTime() - baseDate.getTime();
+    const hours = diffMs / (1000 * 60 * 60);
+    
+    // Se a diferença em horas for válida para um apontamento de trabalho diário
+    if (hours >= 0 && hours < 240) {
+      return Math.round(hours * 100) / 100;
+    }
+    
+    // Fallback simples usando os componentes locais do objeto Date
+    const h = v.getHours();
+    const m = v.getMinutes();
+    const s = v.getSeconds();
+    return Math.round((h + m / 60 + s / 3600) * 100) / 100;
+  }
+
   if (typeof v === "number") {
     // Excel stores duration as fraction of a day
     if (v < 10) return Math.round(v * 24 * 100) / 100;
     return v;
   }
   const s = String(v).trim();
+  if (!s.includes(":")) {
+    const num = parseFloat(s.replace(",", "."));
+    if (!isNaN(num)) return Math.round(num * 100) / 100;
+    return 0;
+  }
   const parts = s.split(":").map((p) => parseInt(p, 10));
   if (parts.some(Number.isNaN)) return 0;
   const [h = 0, m = 0, sec = 0] = parts;
@@ -61,12 +85,74 @@ function weekOfMonth(d: Date): number {
   return Math.min(4, Math.ceil(day / 7));
 }
 
+function strictNormalize(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function pick(row: Record<string, unknown>, ...keys: string[]): unknown {
+  const rowKeys = Object.keys(row);
+
+  // 1. Tenta correspondência exata (case insensitive e trim simples)
   for (const k of keys) {
-    for (const rk of Object.keys(row)) {
-      if (rk.trim().toLowerCase() === k.trim().toLowerCase()) return row[rk];
+    const target = k.trim().toLowerCase();
+    for (const rk of rowKeys) {
+      if (rk.trim().toLowerCase() === target) {
+        return row[rk];
+      }
     }
   }
+
+  // 2. Tenta correspondência estritamente grudada (remove espaços, pontos, acentos, etc.)
+  for (const k of keys) {
+    const targetNormalized = strictNormalize(k);
+    for (const rk of rowKeys) {
+      if (strictNormalize(rk) === targetNormalized) {
+        return row[rk];
+      }
+    }
+  }
+
+  // 3. Fallback inteligente para horas
+  const isHorasQuery = keys.some(k => k.toLowerCase().includes("tempo") || k.toLowerCase().includes("horas"));
+  if (isHorasQuery) {
+    for (const rk of rowKeys) {
+      const norm = strictNormalize(rk);
+      if (
+        (norm.includes("tempo") && norm.includes("trabalho")) ||
+        (norm.includes("tempo") && norm.includes("feedback")) ||
+        norm.includes("horastrabalhadas") ||
+        norm.includes("tempotrabalho") ||
+        norm.includes("tempotrabalhofeedback") ||
+        norm.includes("tempotrabalhofeedbackmobra") ||
+        norm === "horas" ||
+        norm === "hh"
+      ) {
+        return row[rk];
+      }
+    }
+  }
+
+  // 4. Fallback inteligente para número de OS
+  const isOsQuery = keys.some(k => k.toLowerCase().includes("os") || k.toLowerCase().includes("ordem"));
+  if (isOsQuery) {
+    for (const rk of rowKeys) {
+      const norm = strictNormalize(rk);
+      if (
+        (norm.includes("numero") && norm.includes("os")) ||
+        norm === "os" ||
+        norm === "numeroos" ||
+        norm.includes("numeroordem") ||
+        norm.includes("numos")
+      ) {
+        return row[rk];
+      }
+    }
+  }
+
   return undefined;
 }
 

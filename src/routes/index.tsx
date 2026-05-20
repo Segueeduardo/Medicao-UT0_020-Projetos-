@@ -37,7 +37,6 @@ function HomePage() {
   const totalHoras = useMemo(() => ranking.reduce((s, t) => s + t.horas, 0), [ranking]);
   const totalOS = useMemo(() => ranking.reduce((s, t) => s + t.ordens, 0), [ranking]);
   const acimaMeta = useMemo(() => ranking.filter((t) => t.horas >= 150).length, [ranking]);
-  const rankingSub150 = useMemo(() => ranking.filter((t) => t.horas < 150), [ranking]);
   const vencedor = ranking[0];
   const rankingEquipe = useMemo(
     () => (equipeFiltro ? ranking.filter((t) => t.equipe === equipeFiltro) : []),
@@ -129,15 +128,10 @@ function HomePage() {
             Carregando ranking…
           </div>
         ) : equipeFiltro ? (
-          <RankingTable title={`Ranking — ${equipeFiltro}`} ranking={rankingEquipe} highlightSub150 />
+          <RankingTable title={`Ranking — ${equipeFiltro}`} ranking={rankingEquipe} />
         ) : (
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
             <RankingTable title="Ranking geral" ranking={ranking} />
-            <RankingTable
-              title="Liga Duolingo · abaixo de 150h"
-              ranking={rankingSub150}
-              highlightSub150
-            />
           </div>
         )}
 

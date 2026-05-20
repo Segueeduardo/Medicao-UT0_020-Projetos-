@@ -38,9 +38,18 @@ export function RankingTable({
         {ranking.map((t, i) => {
           const pos = i + 1;
           const pct = Math.min(100, (t.horas / META) * 100);
-          const showMedal = highlightSub150 && pos <= 3;
+          const showMedal = pos <= 3;
+          const isSub150 = t.horas < META;
           return (
-            <div key={t.codigo + t.nome} className="grid grid-cols-[3rem_1fr_auto] items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors">
+            <div
+              key={t.codigo + t.nome}
+              className={cn(
+                "grid grid-cols-[3rem_1fr_auto] items-center gap-4 px-5 py-3 transition-colors border-l-4",
+                isSub150
+                  ? "bg-red-500/5 hover:bg-red-500/10 border-l-red-500/60"
+                  : "hover:bg-muted/30 border-l-transparent"
+              )}
+            >
               <div className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
                 {showMedal ? <MedalIcon pos={pos} /> : <span className="w-5 text-center">{pos}</span>}
               </div>
@@ -59,7 +68,9 @@ export function RankingTable({
               </div>
               <div className="text-right">
                 <p className="font-display font-semibold tabular-nums">{t.horas.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">{((t.horas / META) * 100).toFixed(0)}% da meta</p>
+                <p className={cn("text-xs", isSub150 ? "text-red-500 font-medium" : "text-muted-foreground")}>
+                  {pct.toFixed(0)}% da meta
+                </p>
               </div>
             </div>
           );
