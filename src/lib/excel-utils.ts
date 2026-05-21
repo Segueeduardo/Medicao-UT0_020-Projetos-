@@ -34,21 +34,21 @@ export function timeToDecimal(v: unknown): number {
   if (v == null || v === "") return 0;
 
   if (v instanceof Date) {
-    // O XLSX com cellDates: true converte durações em Date usando a data base 1899-12-30
-    const baseDate = new Date(Date.UTC(1899, 11, 30));
-    const diffMs = v.getTime() - baseDate.getTime();
-    const hours = diffMs / (1000 * 60 * 60);
+    // O XLSX cria o Date representando a duração localmente a partir de 1899-12-30.
+    const year = v.getFullYear();
+    const month = v.getMonth();
+    const date = v.getDate();
+    const hours = v.getHours();
+    const minutes = v.getMinutes();
+    const seconds = v.getSeconds();
     
-    // Se a diferença em horas for válida para um apontamento de trabalho diário
-    if (hours >= 0 && hours < 240) {
-      return Math.round(hours * 100) / 100;
-    }
+    // Calcula a diferença de dias locais com relação a 1899-12-30
+    const baseDate = new Date(1899, 11, 30);
+    const currentDate = new Date(year, month, date);
+    const diffDays = Math.round((currentDate.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    // Fallback simples usando os componentes locais do objeto Date
-    const h = v.getHours();
-    const m = v.getMinutes();
-    const s = v.getSeconds();
-    return Math.round((h + m / 60 + s / 3600) * 100) / 100;
+    const totalHours = (diffDays * 24) + hours + (minutes / 60) + (seconds / 3600);
+    return Math.round(totalHours * 100) / 100;
   }
 
   if (typeof v === "number") {
